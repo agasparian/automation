@@ -4,14 +4,26 @@
 
     {
       "id": "trigger-webhook",
-      "name": "Новый ответ на форму",
+      "name": "Webhook триггер",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [240, 300],
       "parameters": {
+        "httpMethod": "POST",
         "path": "medsprintagency-addendum",
         "responseMode": "onReceived",
         "options": {}
+      }
+    },
+
+    {
+      "id": "normalize-form-data",
+      "name": "Новый ответ на форму",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "parameters": {
+        "jsCode": "const raw = $input.first().json;\nconst data = (raw.body && typeof raw.body === 'object') ? raw.body : raw;\nreturn [{ json: data }];"
       }
     },
 
@@ -20,27 +32,14 @@
       "name": "Читать Допущенные",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
-      "position": [460, 300],
+      "position": [680, 300],
       "parameters": {
         "operation": "read",
-        "documentId": {
-          "__rl": true,
-          "value": "1EWFUAFM2J8MWh1MzSQNNNS8zgFdtsxaOwDhm_f1Cql8",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "Допущенные",
-          "mode": "name"
-        },
+        "documentId": { "__rl": true, "value": "1EWFUAFM2J8MWh1MzSQNNNS8zgFdtsxaOwDhm_f1Cql8", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Допущенные", "mode": "name" },
         "options": {}
       },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "REPLACE_WITH_CREDENTIAL_ID",
-          "name": "Google Sheets — medsprintagency"
-        }
-      }
+      "credentials": { "googleSheetsOAuth2Api": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "Google Sheets — medsprintagency" } }
     },
 
     {
@@ -48,9 +47,9 @@
       "name": "Проверить доступ (email в списке?)",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 300],
+      "position": [900, 300],
       "parameters": {
-        "jsCode": "let submitterEmail = '';\ntry { submitterEmail = ($('Новый ответ на форму').first()?.json['Email Address'] || '').toLowerCase().trim(); } catch(e) {}\nconst rows = $input.all();\nconst found = rows.find(row =>\n  (row.json['Email'] || '').toLowerCase().trim() === submitterEmail\n);\nreturn [{ json: { allowed: !!found, submitterEmail } }];"
+        "jsCode": "let submitterEmail = '';\ntry { submitterEmail = ($('Новый ответ на форму').first()?.json['Email Address'] || '').toLowerCase().trim(); } catch(e) {}\nconst rows = $input.all();\nconst found = rows.find(row => (row.json['Email'] || '').toLowerCase().trim() === submitterEmail);\nreturn [{ json: { allowed: !!found, submitterEmail } }];"
       }
     },
 
@@ -59,16 +58,11 @@
       "name": "Доступ разрешён?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [900, 300],
+      "position": [1120, 300],
       "parameters": {
         "conditions": {
           "options": { "caseSensitive": false },
-          "conditions": [{
-            "id": "access-check",
-            "leftValue": "={{ $json.allowed }}",
-            "rightValue": true,
-            "operator": { "type": "boolean", "operation": "equals" }
-          }]
+          "conditions": [{ "id": "access-check", "leftValue": "={{ $json.allowed }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }]
         }
       }
     },
@@ -78,7 +72,7 @@
       "name": "Email: нет доступа",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2,
-      "position": [1120, 480],
+      "position": [1340, 480],
       "parameters": {
         "fromEmail": "medsprintagency@gmail.com",
         "toEmail": "={{ $('Новый ответ на форму').item.json['Email Address'] }}",
@@ -86,89 +80,41 @@
         "emailType": "text",
         "message": "Ваш email не найден в списке разрешённых пользователей.\nОбратитесь к администратору."
       },
-      "credentials": {
-        "smtp": {
-          "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID",
-          "name": "SMTP — medsprintagency"
-        }
-      }
+      "credentials": { "smtp": { "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID", "name": "SMTP — medsprintagency" } }
     },
 
     {
-      "id": "load-clients",
-      "name": "Читать Клиентов",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4,
-      "position": [1120, 300],
-      "parameters": {
-        "operation": "read",
-        "documentId": {
-          "__rl": true,
-          "value": "1EWFUAFM2J8MWh1MzSQNNNS8zgFdtsxaOwDhm_f1Cql8",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "Клиенты",
-          "mode": "name"
-        },
-        "options": {}
-      },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "REPLACE_WITH_CREDENTIAL_ID",
-          "name": "Google Sheets — medsprintagency"
-        }
-      }
-    },
-
-    {
-      "id": "get-client",
-      "name": "Получить данные клиента",
-      "type": "n8n-nodes-base.code",
+      "id": "has-prev-app",
+      "name": "Повторное приложение?",
+      "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [1340, 300],
       "parameters": {
-        "jsCode": "let clientName = '';\ntry { clientName = ($('Новый ответ на форму').first()?.json['Клиент'] || '').trim(); } catch(e) {}\n\nconst rows = $input.all();\nconst found = rows.find(row =>\n  (row.json['Название клиента'] || '').trim() === clientName\n);\nif (!found) {\n  return [{ json: { 'Название клиента': null } }];\n}\nreturn [{ json: found.json }];"
-      }
-    },
-
-    {
-      "id": "if-client-found",
-      "name": "Клиент найден?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [1560, 300],
-      "parameters": {
         "conditions": {
-          "conditions": [{
-            "id": "client-check",
-            "leftValue": "={{ $json['Название клиента'] }}",
-            "rightValue": "",
-            "operator": { "type": "string", "operation": "notEmpty" }
-          }]
+          "conditions": [{ "id": "check-prev-app", "leftValue": "={{ $('Новый ответ на форму').item.json['Ссылка на предыдущее приложение'] }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } }]
         }
       }
     },
 
     {
-      "id": "email-no-client",
-      "name": "Email: клиент не найден",
-      "type": "n8n-nodes-base.emailSend",
+      "id": "first-app-contract",
+      "name": "Данные первого приложения",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1780, 480],
+      "position": [2000, 480],
       "parameters": {
-        "fromEmail": "medsprintagency@gmail.com",
-        "toEmail": "={{ $('Новый ответ на форму').item.json['Email Address'] }}",
-        "subject": "Ошибка: клиент не найден — МедСпринт",
-        "emailType": "text",
-        "message": "Клиент \"{{ $('Новый ответ на форму').item.json['Клиент'] }}\" не найден в реестре.\nПроверьте написание или добавьте клиента в лист «Клиенты»."
-      },
-      "credentials": {
-        "smtp": {
-          "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID",
-          "name": "SMTP — medsprintagency"
-        }
+        "jsCode": "const nomerDogovora = ($('Новый ответ на форму').first()?.json['Номер договора'] || '').trim();\nconst dataDogovora  = ($('Новый ответ на форму').first()?.json['Дата договора']  || '').trim();\nif (!nomerDogovora) throw new Error('Для первого приложения укажите «Номер договора» в форме.');\nif (!dataDogovora)  throw new Error('Для первого приложения укажите «Дата договора» в форме.');\nreturn [{ json: { nomerDogovora, dataDogovora, nomerPrilozhenia: '1' } }];"
+      }
+    },
+
+    {
+      "id": "resolve-prev-doc-id",
+      "name": "Определить ID предыдущего приложения",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 300],
+      "parameters": {
+        "jsCode": "const formUrl = ($('Новый ответ на форму').first()?.json['Ссылка на предыдущее приложение'] || '').trim();\nconst match = formUrl.match(/\\/document\\/d\\/([a-zA-Z0-9_-]+)/)\n           || formUrl.match(/\\/file\\/d\\/([a-zA-Z0-9_-]+)/)\n           || formUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);\nif (!match) throw new Error('Не удалось извлечь ID из ссылки. Проверьте ссылку на предыдущее приложение.');\nreturn [{ json: { ...$input.item.json, prevDocId: match[1] } }];"
       }
     },
 
@@ -177,17 +123,13 @@
       "name": "Прочитать предыдущее приложение",
       "type": "n8n-nodes-base.googleDocs",
       "typeVersion": 2,
-      "position": [1780, 300],
+      "position": [2220, 300],
       "parameters": {
         "operation": "get",
-        "documentURL": "={{ $json['ID последнего Doc'] }}"
+        "documentURL": "={{ $json.prevDocId }}",
+        "simple": false
       },
-      "credentials": {
-        "googleDocsOAuth2Api": {
-          "id": "REPLACE_WITH_CREDENTIAL_ID",
-          "name": "Google Docs — medsprintagency"
-        }
-      }
+      "credentials": { "googleDocsOAuth2Api": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "Google Docs — medsprintagency" } }
     },
 
     {
@@ -195,9 +137,22 @@
       "name": "Извлечь номер и дату договора",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2000, 300],
+      "position": [2440, 300],
       "parameters": {
-        "jsCode": "// Собираем весь текст из структуры Google Docs API\nconst content = $input.item.json.body?.content || [];\nconst text = content\n  .map(el => {\n    if (!el.paragraph) return '';\n    return (el.paragraph.elements || [])\n      .map(e => e.textRun?.content || '')\n      .join('');\n  })\n  .join('\\n');\n\n// Номер и дата основного договора: «к Договору № X от Y г.»\nconst matchDogovor = text.match(/к\\s+Договору\\s+№?\\s*([\\w\\/\\-\\.]+)\\s+от\\s+([\\d\\w\\s]+?г\\.)/i);\n\n// Номер приложения: «Приложение № N»\nconst matchNomer = text.match(/Приложение\\s*№\\s*(\\d+)/i);\n\nif (!matchDogovor) throw new Error('Не найдена строка \"к Договору №\" в документе: ' + $input.item.json.title);\nif (!matchNomer)   throw new Error('Не найдена строка \"Приложение №\" в документе: ' + $input.item.json.title);\n\nreturn [{\n  json: {\n    nomerDogovora:    matchDogovor[1].trim(),\n    dataDogovora:     matchDogovor[2].trim(),\n    nomerPrilozhenia: String(parseInt(matchNomer[1]) + 1)\n  }\n}];"
+        "jsCode": "// Рекурсивный экстрактор текста включая таблицы (ячейки строки разделяются \\t)\nfunction extractText(content) {\n  if (!Array.isArray(content)) return '';\n  return content.map(el => {\n    if (el.paragraph) return (el.paragraph.elements || []).map(e => e.textRun?.content || '').join('');\n    if (el.table) {\n      return (el.table.tableRows || []).map(row =>\n        (row.tableCells || []).map(cell =>\n          extractText(cell.content || []).replace(/\\n+/g, ' ').trim()\n        ).join('\\t')\n      ).join('\\n');\n    }\n    return '';\n  }).join('\\n');\n}\n\nlet text = '';\nif (typeof $input.item.json.content === 'string') {\n  text = $input.item.json.content;\n} else {\n  text = extractText($input.item.json.body?.content || []);\n}\n\nconst lines = text.split('\\n').map(l => l.trim()).filter(Boolean);\nconst docRef = $input.item.json.title || $input.item.json.documentId || 'неизвестный документ';\n\n// === Номер приложения ===\n// Принимаем «Приложение № 1», «Приложение №1», «Приложение 1»\n// Фолбэк: из названия документа\nconst matchNomer =\n  text.match(/Приложение\\s*№\\s*(\\d+)/i) ||\n  text.match(/Приложение\\s+(\\d+)(?=[\\s\\-–—,.]|$)/i) ||\n  (docRef + ' ').match(/Приложение\\s*(?:№\\s*)?(\\d+)(?=[\\s\\-–—,.]|$)/i);\nif (!matchNomer) throw new Error('Не найден номер приложения в документе: ' + docRef);\n\n// === Номер и дата основного договора ===\n// Дата: «15 января 2024 г.» ИЛИ «15.01.2024» ИЛИ «01/01/2024»\nconst dateRu = '[«\"]?\\\\d+[»\"]?\\\\s+\\\\S+\\\\s+\\\\d{4}\\\\s*(?:г\\\\.?|года)?';\nconst dateDMY = '\\\\d{2}[./]\\\\d{2}[./]\\\\d{4}';\nconst dateAny = '(?:' + dateRu + '|' + dateDMY + ')';\n// «к Договору [слова] № X от DATE»\nconst re1 = new RegExp('к\\\\s+Договор[уа]?\\\\s*(?:(?:\\\\S+\\\\s+){0,6})?№\\\\s*(\\\\S+)\\\\s+от\\\\s+(' + dateAny + ')', 'i');\n// «Договора/Договору/Договор № X от DATE» (без «к»)\nconst re2 = new RegExp('Договор[аеуом]?\\\\s*(?:(?:\\\\S+\\\\s+){0,4})?№\\\\s*(\\\\S+)\\\\s+от\\\\s+(' + dateAny + ')', 'i');\nconst matchDogovor = text.match(re1) || text.match(re2);\nif (!matchDogovor) throw new Error('Не найдены номер и дата договора в документе: ' + docRef + '. Ожидается текст вида «к Договору № X от DD.MM.YYYY» или «к Договору № X от 15 января 2024 г.»');\n\n// Должность подписанта контрагента из «в лице ...»\nlet signatoryTitle = '';\nconst titleMatch = text.match(/в\\s+лице\\s+(.+?)\\s+[А-ЯЁ][а-яё]+(?:\\s+[А-ЯЁ]\\.[А-ЯЁ]\\.| [А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+)/i);\nif (titleMatch) signatoryTitle = titleMatch[1].trim();\n\n// === Название организации контрагента ===\n// Стратегия 1: таб-строка где правая ячейка содержит «М-Спринт» → левая = контрагент\nlet clientName = '';\nfor (const line of lines) {\n  const parts = line.split('\\t');\n  if (parts.length >= 2) {\n    const right = parts[parts.length - 1];\n    const left = parts[0];\n    if (/М[\\-.]?Спринт/i.test(right) && /(?:ООО|АО|ИП|ПАО|ЗАО)/i.test(left)) {\n      clientName = left.trim();\n      break;\n    }\n  }\n}\n// Стратегия 2: любой ООО/АО/ИП «...» который не М-Спринт\nif (!clientName) {\n  for (const m of text.matchAll(/((?:ООО|АО|ИП|ПАО|ЗАО|НКО)\\s*[«\"][^»\"\\n]{2,60}[»\"])/g)) {\n    if (!/М.Спринт/i.test(m[1])) { clientName = m[1].trim(); break; }\n  }\n}\n\n// === ФИО подписанта контрагента (формат «Фамилия И.О.») ===\nlet signatoryName = '';\nconst fioRe = /^([А-ЯЁ][а-яё]+\\s+[А-ЯЁ]\\.[А-ЯЁ]\\.)$/;\n// Таб-строка где обе ячейки — это ФИО → левая = контрагент\nfor (const line of lines) {\n  const parts = line.split('\\t');\n  if (parts.length >= 2 && fioRe.test(parts[0].trim()) && fioRe.test(parts[parts.length - 1].trim())) {\n    signatoryName = parts[0].trim();\n    break;\n  }\n}\n// Фолбэк: первое ФИО после названия контрагента в тексте\nif (!signatoryName && clientName) {\n  const pos = text.indexOf(clientName);\n  if (pos >= 0) {\n    const m = text.substring(pos).match(/([А-ЯЁ][а-яё]+\\s+[А-ЯЁ]\\.[А-ЯЁ]\\.)/);\n    if (m) signatoryName = m[1].trim();\n  }\n}\n\n// Доп. стратегии для должности — из блока подписей\nconst titleRe = /^(Генеральный директор|Директор|Президент|Председатель|Руководитель)/i;\nif (!signatoryTitle) {\n  for (const line of lines) {\n    const parts = line.split('\\t');\n    if (parts.length >= 2) {\n      const right = parts[parts.length - 1].trim();\n      const left  = parts[0].trim();\n      const rm = right.match(titleRe);\n      const lm = left.match(titleRe);\n      if (rm && lm) {\n        signatoryTitle = rm[1];\n        break;\n      }\n    }\n  }\n}\nif (!signatoryTitle && clientName) {\n  for (let i = 1; i < lines.length; i++) {\n    if (lines[i].split('\\t').some(p => p.trim() === clientName)) {\n      const prevParts = lines[i - 1].split('\\t');\n      const candidate = (prevParts[prevParts.length - 1] || prevParts[0]).trim();\n      const cm = candidate.match(titleRe);\n      if (cm) signatoryTitle = cm[1];\n      break;\n    }\n  }\n}\nreturn [{\n  json: {\n    nomerDogovora:    matchDogovor[1].trim(),\n    dataDogovora:     matchDogovor[2].trim(),\n    nomerPrilozhenia: String(parseInt(matchNomer[1]) + 1),\n    signatoryTitle,\n    clientName,\n    signatoryName\n  }\n}];"
+      }
+    },
+
+    {
+      "id": "if-has-client-data",
+      "name": "Данные контрагента найдены?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2660, 300],
+      "parameters": {
+        "conditions": {
+          "conditions": [{ "id": "client-data-check", "leftValue": "={{ $json.clientName }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } }]
+        }
       }
     },
 
@@ -206,9 +161,9 @@
       "name": "Извлечь ID документа реквизитов",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2220, 300],
+      "position": [2880, 480],
       "parameters": {
-        "jsCode": "let url = '';\ntry { url = $('Новый ответ на форму').first()?.json['Ссылка на файл реквизитов клиента'] || ''; } catch(e) {}\n\nconst match = url.match(/\\/document\\/d\\/([a-zA-Z0-9_-]+)/);\nif (!match) throw new Error('Неверная ссылка на файл реквизитов: ' + url);\nreturn [{ json: { requisitesDocId: match[1] } }];"
+        "jsCode": "let url = '';\ntry { url = $('Новый ответ на форму').first()?.json['Ссылка на файл реквизитов клиента'] || ''; } catch(e) {}\nconst match = url.match(/\\/document\\/d\\/([a-zA-Z0-9_-]+)/);\nif (!match) throw new Error('Неверная ссылка на файл реквизитов: ' + url);\nreturn [{ json: { requisitesDocId: match[1] } }];"
       }
     },
 
@@ -217,17 +172,13 @@
       "name": "Прочитать файл реквизитов",
       "type": "n8n-nodes-base.googleDocs",
       "typeVersion": 2,
-      "position": [2440, 300],
+      "position": [3100, 480],
       "parameters": {
         "operation": "get",
-        "documentURL": "={{ $json.requisitesDocId }}"
+        "documentURL": "={{ $json.requisitesDocId }}",
+        "simple": false
       },
-      "credentials": {
-        "googleDocsOAuth2Api": {
-          "id": "REPLACE_WITH_CREDENTIAL_ID",
-          "name": "Google Docs — medsprintagency"
-        }
-      }
+      "credentials": { "googleDocsOAuth2Api": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "Google Docs — medsprintagency" } }
     },
 
     {
@@ -235,9 +186,20 @@
       "name": "Разобрать реквизиты",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2660, 300],
+      "position": [3320, 480],
       "parameters": {
-        "jsCode": "// Собираем текст\nconst content = $input.item.json.body?.content || [];\nconst text = content\n  .map(el => {\n    if (!el.paragraph) return '';\n    return (el.paragraph.elements || [])\n      .map(e => e.textRun?.content || '')\n      .join('');\n  })\n  .join('\\n');\n\n// Парсим строки формата «Ключ: Значение»\nconst fields = {};\ntext.split('\\n').forEach(line => {\n  const colonIdx = line.indexOf(':');\n  if (colonIdx > 0) {\n    const key = line.substring(0, colonIdx).trim();\n    const val = line.substring(colonIdx + 1).trim();\n    if (key && val) fields[key] = val;\n  }\n});\n\nconst fullName = fields['Полное название'] || fields['Название'] || '';\nconst signatory = fields['ФИО подписанта'] || fields['ФИО'] || fields['Подписант'] || '';\n\nif (!fullName) throw new Error('Не найдено поле \"Полное название\" в документе реквизитов');\nif (!signatory) throw new Error('Не найдено поле \"ФИО подписанта\" в документе реквизитов');\n\nreturn [{ json: { clientName: fullName, signatoryName: signatory } }];"
+        "jsCode": "function extractText(content) {\n  if (!Array.isArray(content)) return '';\n  return content.map(el => {\n    if (el.paragraph) return (el.paragraph.elements || []).map(e => e.textRun?.content || '').join('');\n    if (el.table) {\n      return (el.table.tableRows || []).map(row =>\n        (row.tableCells || []).map(cell =>\n          extractText(cell.content || []).replace(/\\n+/g, ' ').trim()\n        ).join('\\t')\n      ).join('\\n');\n    }\n    return '';\n  }).join('\\n');\n}\n\nlet text = '';\nif (typeof $input.item.json.content === 'string') {\n  text = $input.item.json.content;\n} else {\n  text = extractText($input.item.json.body?.content || []);\n}\n\nconst lines = text.split('\\n').map(l => l.trim()).filter(Boolean);\n\nfunction getField(name) {\n  const low = name.toLowerCase();\n  for (const line of lines) {\n    const parts = line.split('\\t');\n    if (parts.length >= 2 && parts[0].trim().toLowerCase() === low) return parts.slice(1).join('\\t').trim();\n  }\n  const escaped = name.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n  const re = new RegExp('^' + escaped + '\\\\s*:\\\\s*(.+)', 'i');\n  for (const line of lines) { const m = line.match(re); if (m && m[1].trim()) return m[1].trim(); }\n  for (let i = 0; i < lines.length - 1; i++) { if (lines[i].toLowerCase() === low) return lines[i + 1].split('\\t')[0].trim(); }\n  return '';\n}\n\nlet fullName = getField('Сокращенное название') || getField('Сокращённое название')\n            || getField('Краткое наименование') || getField('Краткое название')\n            || getField('Полное название') || getField('Полное наименование')\n            || getField('Наименование') || getField('Название')\n            || getField('Организация') || getField('Исполнитель')\n            || getField('Заказчик') || getField('Клиент');\n\nif (!fullName) {\n  const m = text.match(/((?:ООО|ОАО|ЗАО|АО|ИП|ПАО|НКО|ГУП|МУП)\\s*[«\"][^»\"\\n]{2,60}[»\"])/);\n  if (m) fullName = m[1].trim();\n}\nif (!fullName) {\n  const header = lines.slice(0, 5).join(' ');\n  const m = header.match(/((?:ООО|ОАО|ЗАО|АО|ИП|ПАО|НКО)\\s+[А-ЯЁ«\"][А-ЯЁа-яёЁ\\-«»\"\" ]+)/);\n  if (m) fullName = m[1].trim();\n}\n\nlet signatoryRaw = getField('ФИО подписанта') || getField('ФИО') || getField('Подписант')\n                || getField('Генеральный директор') || getField('Директор')\n                || getField('Руководитель') || getField('Президент') || getField('Председатель');\n\nif (!signatoryRaw) {\n  for (let i = 0; i < lines.length - 1; i++) {\n    if (/^(генеральный директор|директор|руководитель|президент|подписант)/i.test(lines[i].split('\\t')[0])) {\n      const parts = lines[i].split('\\t');\n      signatoryRaw = parts.length >= 2 ? parts[1] : (lines[i].split(':')[1]?.trim() || lines[i + 1] || '');\n      break;\n    }\n  }\n}\nif (!signatoryRaw) {\n  const m = text.match(/([А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+ [А-ЯЁ][а-яё]+)/);\n  if (m) signatoryRaw = m[1];\n}\nif (signatoryRaw) {\n  const fioOnly = signatoryRaw.match(/^([А-ЯЁа-яёЁ]+(?:[\\s\\-][А-ЯЁа-яёЁ]+){1,2})/);\n  if (fioOnly) signatoryRaw = fioOnly[1].trim();\n}\n\nlet signatoryTitle = getField('Должность') || getField('Должность подписанта') || '';\nif (!signatoryTitle) {\n  const titles = ['Генеральный директор', 'Директор', 'Президент', 'Руководитель', 'Председатель'];\n  for (const t of titles) { if (getField(t)) { signatoryTitle = t; break; } }\n}\nif (!signatoryTitle) {\n  const m = lines.find(l => /^(генеральн\\w*\\s+директор\\w*|директор\\w*|президент\\w*|руководитель\\w*|председатель\\w*)/i.test(l.split('\\t')[0]));\n  if (m) { const ci = m.indexOf(':'); signatoryTitle = ci > 0 ? m.substring(0, ci).trim() : m.split('\\t')[0].trim(); }\n}\n\nif (!fullName) throw new Error('Не найдено название организации в документе реквизитов.');\nif (!signatoryRaw) throw new Error('Не найдено ФИО подписанта в документе реквизитов.');\n\nfunction formatFIO(fio) {\n  const parts = fio.trim().split(/\\s+/);\n  if (parts.length >= 3) return parts[0] + ' ' + parts[1][0] + '.' + parts[2][0] + '.';\n  if (parts.length === 2) return parts[0] + ' ' + parts[1][0] + '.';\n  return fio;\n}\n\nreturn [{ json: { clientName: fullName, signatoryName: formatFIO(signatoryRaw), signatoryTitle } }];"
+      }
+    },
+
+    {
+      "id": "collect-client-data",
+      "name": "Собрать данные контрагента",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3540, 300],
+      "parameters": {
+        "jsCode": "// Данные договора: из предыдущего приложения или из формы (первое приложение)\nlet nomerDogovora = '', dataDogovora = '', nomerPrilozhenia = '1';\ntry {\n  const d = $('Извлечь номер и дату договора').item.json;\n  nomerDogovora    = d.nomerDogovora    || '';\n  dataDogovora     = d.dataDogovora     || '';\n  nomerPrilozhenia = d.nomerPrilozhenia || '1';\n} catch(e) {}\nif (!nomerDogovora) {\n  try {\n    const d = $('Данные первого приложения').item.json;\n    nomerDogovora    = d.nomerDogovora || '';\n    dataDogovora     = d.dataDogovora  || '';\n    nomerPrilozhenia = '1';\n  } catch(e) {}\n}\n\n// Данные контрагента: из предыдущего приложения или из реквизитов\nlet clientName = '', signatoryName = '', signatoryTitle = '';\ntry {\n  const d = $('Извлечь номер и дату договора').item.json;\n  if (d.clientName)     clientName     = d.clientName;\n  if (d.signatoryName)  signatoryName  = d.signatoryName;\n  if (d.signatoryTitle) signatoryTitle = d.signatoryTitle;\n} catch(e) {}\nif (!clientName || !signatoryTitle) {\n  try {\n    const d = $('Разобрать реквизиты').item.json;\n    if (!clientName && d.clientName)       clientName    = d.clientName;\n    if (!signatoryName && d.signatoryName) signatoryName = d.signatoryName;\n    if (!signatoryTitle && d.signatoryTitle) signatoryTitle = d.signatoryTitle;\n  } catch(e) {}\n}\n\nif (!nomerDogovora) throw new Error('Не удалось получить номер договора.');\nif (!clientName) throw new Error('Не удалось получить название организации контрагента.');\nif (!signatoryName) throw new Error('Не удалось получить ФИО подписанта контрагента.');\n\nreturn [{ json: { nomerDogovora, dataDogovora, nomerPrilozhenia, clientName, signatoryName, signatoryTitle } }];"
       }
     },
 
@@ -246,27 +208,14 @@
       "name": "Читать Шаблоны",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
-      "position": [2880, 300],
+      "position": [3760, 300],
       "parameters": {
         "operation": "read",
-        "documentId": {
-          "__rl": true,
-          "value": "1EWFUAFM2J8MWh1MzSQNNNS8zgFdtsxaOwDhm_f1Cql8",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "Шаблоны",
-          "mode": "name"
-        },
+        "documentId": { "__rl": true, "value": "1EWFUAFM2J8MWh1MzSQNNNS8zgFdtsxaOwDhm_f1Cql8", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Шаблоны", "mode": "name" },
         "options": {}
       },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "REPLACE_WITH_CREDENTIAL_ID",
-          "name": "Google Sheets — medsprintagency"
-        }
-      }
+      "credentials": { "googleSheetsOAuth2Api": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "Google Sheets — medsprintagency" } }
     },
 
     {
@@ -274,9 +223,9 @@
       "name": "Найти шаблон по услуге",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3100, 300],
+      "position": [3980, 300],
       "parameters": {
-        "jsCode": "let service = '';\ntry { service = ($('Новый ответ на форму').first()?.json['Услуга'] || '').trim(); } catch(e) {}\n\nconst rows = $input.all();\nconst found = rows.find(row =>\n  (row.json['Услуга'] || '').trim() === service\n);\nif (!found) {\n  return [{ json: { 'ID шаблона на Drive': null } }];\n}\nreturn [{ json: found.json }];"
+        "jsCode": "let service = '';\ntry { service = ($('Новый ответ на форму').first()?.json['Услуга'] || '').trim(); } catch(e) {}\nconst rows = $input.all();\nconst found = rows.find(row => (row.json['Услуга'] || '').trim() === service);\nif (!found) return [{ json: { 'ID шаблона на Drive': null } }];\nreturn [{ json: found.json }];"
       }
     },
 
@@ -285,15 +234,10 @@
       "name": "Шаблон найден?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [3320, 300],
+      "position": [4200, 300],
       "parameters": {
         "conditions": {
-          "conditions": [{
-            "id": "template-check",
-            "leftValue": "={{ $json['ID шаблона на Drive'] }}",
-            "rightValue": "",
-            "operator": { "type": "string", "operation": "notEmpty" }
-          }]
+          "conditions": [{ "id": "template-check", "leftValue": "={{ $json['ID шаблона на Drive'] }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } }]
         }
       }
     },
@@ -303,7 +247,7 @@
       "name": "Email: шаблон не найден",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2,
-      "position": [3540, 480],
+      "position": [4420, 480],
       "parameters": {
         "fromEmail": "medsprintagency@gmail.com",
         "toEmail": "={{ $('Новый ответ на форму').item.json['Email Address'] }}",
@@ -311,12 +255,7 @@
         "emailType": "text",
         "message": "Шаблон для услуги \"{{ $('Новый ответ на форму').item.json['Услуга'] }}\" не найден.\nДобавьте шаблон в лист «Шаблоны» таблицы."
       },
-      "credentials": {
-        "smtp": {
-          "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID",
-          "name": "SMTP — medsprintagency"
-        }
-      }
+      "credentials": { "smtp": { "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID", "name": "SMTP — medsprintagency" } }
     },
 
     {
@@ -324,10 +263,26 @@
       "name": "Форматировать даты",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3540, 300],
+      "position": [4420, 300],
       "parameters": {
-        "jsCode": "const MONTHS = [\n  'января','февраля','марта','апреля','мая','июня',\n  'июля','августа','сентября','октября','ноября','декабря'\n];\n\nfunction formatDate(dateStr) {\n  if (!dateStr) return '';\n  const d = new Date(dateStr);\n  if (isNaN(d)) return dateStr;\n  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()} г.`;\n}\n\nlet formData = {};\ntry { formData = $('Новый ответ на форму').first()?.json || {}; } catch(e) {}\n\nreturn [{\n  json: {\n    dateApp:   formatDate(formData['Дата приложения']),\n    dateStart: formatDate(formData['Дата начала работ'])\n  }\n}];"
+        "jsCode": "const MONTHS = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];\nfunction formatDate(dateStr) {\n  if (!dateStr) return '';\n  const d = new Date(dateStr);\n  if (isNaN(d)) return dateStr;\n  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()} г.`;\n}\nlet formData = {};\ntry { formData = $('Новый ответ на форму').first()?.json || {}; } catch(e) {}\n\n// Определяем ID документа-источника для поиска папки\nlet folderSourceDocId = '';\ntry { folderSourceDocId = $('Определить ID предыдущего приложения').item.json.prevDocId; } catch(e) {}\nif (!folderSourceDocId) {\n  try { folderSourceDocId = $('Извлечь ID документа реквизитов').item.json.requisitesDocId; } catch(e) {}\n}\nif (!folderSourceDocId) throw new Error('Не удалось определить ID документа для поиска папки.');\n\nreturn [{ json: { dateApp: formatDate(formData['Дата приложения']), dateStart: formatDate(formData['Дата начала работ']), folderSourceDocId } }];"
       }
+    },
+
+    {
+      "id": "get-prev-doc-folder",
+      "name": "Получить папку документа",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [4640, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $('Форматировать даты').item.json.folderSourceDocId }}?fields=parents",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {}
+      },
+      "credentials": { "googleDriveOAuth2Api": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "Google Drive — medsprintagency" } }
     },
 
     {
@@ -335,31 +290,25 @@
       "name": "Скопировать шаблон в папку клиента",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
-      "position": [3760, 300],
+      "position": [4860, 300],
       "parameters": {
         "operation": "copy",
-        "fileId": {
-          "__rl": true,
-          "value": "={{ $('Найти шаблон по услуге').item.json['ID шаблона на Drive'] }}",
-          "mode": "id"
-        },
-        "name": "=Приложение №{{ $('Извлечь номер и дату договора').item.json.nomerPrilozhenia }} — {{ $('Получить данные клиента').item.json['Название клиента'] }}",
-        "driveId": {
-          "__rl": true,
-          "value": "My Drive",
-          "mode": "list"
-        },
-        "folderId": {
-          "__rl": true,
-          "value": "={{ $('Получить данные клиента').item.json['ID папки Drive'] }}",
-          "mode": "id"
-        }
+        "fileId": { "__rl": true, "value": "={{ $('Найти шаблон по услуге').item.json['ID шаблона на Drive'] }}", "mode": "id" },
+        "name": "=Приложение № {{ $('Собрать данные контрагента').item.json.nomerPrilozhenia }} - {{ $('Новый ответ на форму').item.json['Услуга'] }} - Договор ООО «М-Спринт» - {{ $('Собрать данные контрагента').item.json.clientName }}",
+        "driveId": { "__rl": true, "value": "My Drive", "mode": "list" },
+        "folderId": { "__rl": true, "value": "={{ $json.parents?.[0] }}", "mode": "id" }
       },
-      "credentials": {
-        "googleDriveOAuth2Api": {
-          "id": "REPLACE_WITH_CREDENTIAL_ID",
-          "name": "Google Drive — medsprintagency"
-        }
+      "credentials": { "googleDriveOAuth2Api": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "Google Drive — medsprintagency" } }
+    },
+
+    {
+      "id": "prepare-batch-body",
+      "name": "Подготовить body batchUpdate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [5080, 300],
+      "parameters": {
+        "jsCode": "const nomerPrilozhenia = $('Собрать данные контрагента').item.json.nomerPrilozhenia;\nconst nomerDogovora    = $('Собрать данные контрагента').item.json.nomerDogovora;\nconst dataDogovora     = $('Собрать данные контрагента').item.json.dataDogovora;\nconst dateApp          = $('Форматировать даты').item.json.dateApp;\nconst dateStart        = $('Форматировать даты').item.json.dateStart;\nconst clientName       = $('Собрать данные контрагента').item.json.clientName;\nconst signatoryName    = $('Собрать данные контрагента').item.json.signatoryName;\nconst signatoryTitle   = $('Собрать данные контрагента').item.json.signatoryTitle || '';\nconst docId            = $('Скопировать шаблон в папку клиента').item.json.id;\n\nconst body = {\n  requests: [\n    { replaceAllText: { containsText: { text: '{{НОМЕР_ПРИЛОЖЕНИЯ}}',      matchCase: true }, replaceText: nomerPrilozhenia } },\n    { replaceAllText: { containsText: { text: '{{НОМЕР_ДОГОВОРА}}',        matchCase: true }, replaceText: nomerDogovora } },\n    { replaceAllText: { containsText: { text: '{{ДАТА_ДОГОВОРА}}',         matchCase: true }, replaceText: dataDogovora } },\n    { replaceAllText: { containsText: { text: '{{ДАТА_ПРИЛОЖЕНИЯ}}',       matchCase: true }, replaceText: dateApp } },\n    { replaceAllText: { containsText: { text: '{{ДАТА_НАЧАЛА_РАБОТ}}',     matchCase: true }, replaceText: dateStart } },\n    { replaceAllText: { containsText: { text: '{{НАЗВАНИЕ_КЛИЕНТА}}',      matchCase: true }, replaceText: clientName } },\n    { replaceAllText: { containsText: { text: '{{ФИО_ПОДПИСАНТА_КЛИЕНТА}}',matchCase: true }, replaceText: signatoryName } },\n    { replaceAllText: { containsText: { text: '{{ДОЛЖНОСТЬ_ПОДПИСАНТА}}',  matchCase: true }, replaceText: signatoryTitle } }\n  ]\n};\n\nreturn [{ json: { docId, batchBody: JSON.stringify(body) } }];"
       }
     },
 
@@ -368,68 +317,19 @@
       "name": "Заменить плейсхолдеры (batchUpdate)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [3980, 300],
+      "position": [5300, 300],
       "parameters": {
         "method": "POST",
-        "url": "=https://docs.googleapis.com/v1/documents/{{ $('Скопировать шаблон в папку клиента').item.json.id }}:batchUpdate",
+        "url": "=https://docs.googleapis.com/v1/documents/{{ $json.docId }}:batchUpdate",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "googleDocsOAuth2Api",
         "sendBody": true,
-        "contentType": "json",
-        "body": {
-          "requests": [
-            {
-              "replaceAllText": {
-                "containsText": { "text": "{{НОМЕР_ПРИЛОЖЕНИЯ}}", "matchCase": true },
-                "replaceText": "={{ $('Извлечь номер и дату договора').item.json.nomerPrilozhenia }}"
-              }
-            },
-            {
-              "replaceAllText": {
-                "containsText": { "text": "{{НОМЕР_ДОГОВОРА}}", "matchCase": true },
-                "replaceText": "={{ $('Извлечь номер и дату договора').item.json.nomerDogovora }}"
-              }
-            },
-            {
-              "replaceAllText": {
-                "containsText": { "text": "{{ДАТА_ДОГОВОРА}}", "matchCase": true },
-                "replaceText": "={{ $('Извлечь номер и дату договора').item.json.dataDogovora }}"
-              }
-            },
-            {
-              "replaceAllText": {
-                "containsText": { "text": "{{ДАТА_ПРИЛОЖЕНИЯ}}", "matchCase": true },
-                "replaceText": "={{ $('Форматировать даты').item.json.dateApp }}"
-              }
-            },
-            {
-              "replaceAllText": {
-                "containsText": { "text": "{{ДАТА_НАЧАЛА_РАБОТ}}", "matchCase": true },
-                "replaceText": "={{ $('Форматировать даты').item.json.dateStart }}"
-              }
-            },
-            {
-              "replaceAllText": {
-                "containsText": { "text": "{{НАЗВАНИЕ_КЛИЕНТА}}", "matchCase": true },
-                "replaceText": "={{ $('Разобрать реквизиты').item.json.clientName }}"
-              }
-            },
-            {
-              "replaceAllText": {
-                "containsText": { "text": "{{ФИО_ПОДПИСАНТА_КЛИЕНТА}}", "matchCase": true },
-                "replaceText": "={{ $('Разобрать реквизиты').item.json.signatoryName }}"
-              }
-            }
-          ]
-        },
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.batchBody }}",
         "options": {}
       },
-      "credentials": {
-        "googleDocsOAuth2Api": {
-          "id": "REPLACE_WITH_CREDENTIAL_ID",
-          "name": "Google Docs — medsprintagency"
-        }
-      }
+      "credentials": { "googleDocsOAuth2Api": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "Google Docs — medsprintagency" } }
     },
 
     {
@@ -437,39 +337,26 @@
       "name": "Добавить запись в реестр",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
-      "position": [4200, 300],
+      "position": [5520, 300],
       "parameters": {
         "operation": "append",
-        "documentId": {
-          "__rl": true,
-          "value": "1EWFUAFM2J8MWh1MzSQNNNS8zgFdtsxaOwDhm_f1Cql8",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "Реестр приложений",
-          "mode": "name"
-        },
+        "documentId": { "__rl": true, "value": "1EWFUAFM2J8MWh1MzSQNNNS8zgFdtsxaOwDhm_f1Cql8", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Реестр приложений", "mode": "name" },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Дата":            "={{ new Date().toLocaleDateString('ru-RU') }}",
-            "Клиент":          "={{ $('Получить данные клиента').item.json['Название клиента'] }}",
-            "Услуга":          "={{ $('Новый ответ на форму').item.json['Услуга'] }}",
-            "№ приложения":    "={{ $('Извлечь номер и дату договора').item.json.nomerPrilozhenia }}",
-            "Ссылка на Doc":   "=https://docs.google.com/document/d/{{ $('Скопировать шаблон в папку клиента').item.json.id }}",
-            "Статус":          "Черновик",
-            "Кто создал":      "={{ $('Новый ответ на форму').item.json['Email Address'] }}"
+            "Дата":          "={{ new Date().toLocaleDateString('ru-RU') }}",
+            "Клиент":        "={{ $('Собрать данные контрагента').item.json.clientName }}",
+            "Услуга":        "={{ $('Новый ответ на форму').item.json['Услуга'] }}",
+            "№ приложения":  "={{ $('Собрать данные контрагента').item.json.nomerPrilozhenia }}",
+            "Ссылка на Doc": "=https://docs.google.com/document/d/{{ $('Скопировать шаблон в папку клиента').item.json.id }}",
+            "Статус":        "Черновик",
+            "Кто создал":    "={{ $('Новый ответ на форму').item.json['Email Address'] }}"
           }
         },
         "options": {}
       },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "REPLACE_WITH_CREDENTIAL_ID",
-          "name": "Google Sheets — medsprintagency"
-        }
-      }
+      "credentials": { "googleSheetsOAuth2Api": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "Google Sheets — medsprintagency" } }
     },
 
     {
@@ -477,35 +364,22 @@
       "name": "Обновить ID последнего Doc у клиента",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4,
-      "position": [4420, 300],
+      "position": [5740, 300],
       "parameters": {
         "operation": "update",
-        "documentId": {
-          "__rl": true,
-          "value": "1EWFUAFM2J8MWh1MzSQNNNS8zgFdtsxaOwDhm_f1Cql8",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "Клиенты",
-          "mode": "name"
-        },
+        "documentId": { "__rl": true, "value": "1EWFUAFM2J8MWh1MzSQNNNS8zgFdtsxaOwDhm_f1Cql8", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Клиенты", "mode": "name" },
         "columns": {
           "mappingMode": "defineBelow",
           "matchingColumns": ["Название клиента"],
           "value": {
-            "Название клиента": "={{ $('Получить данные клиента').item.json['Название клиента'] }}",
+            "Название клиента": "={{ $('Собрать данные контрагента').item.json.clientName }}",
             "ID последнего Doc": "={{ $('Скопировать шаблон в папку клиента').item.json.id }}"
           }
         },
         "options": {}
       },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "REPLACE_WITH_CREDENTIAL_ID",
-          "name": "Google Sheets — medsprintagency"
-        }
-      }
+      "credentials": { "googleSheetsOAuth2Api": { "id": "REPLACE_WITH_CREDENTIAL_ID", "name": "Google Sheets — medsprintagency" } }
     },
 
     {
@@ -513,25 +387,23 @@
       "name": "Уведомить менеджера",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2,
-      "position": [4640, 300],
+      "position": [5960, 300],
       "parameters": {
         "fromEmail": "medsprintagency@gmail.com",
         "toEmail": "={{ $('Новый ответ на форму').item.json['Email Address'] }}",
-        "subject": "=✅ Готово: Приложение №{{ $('Извлечь номер и дату договора').item.json.nomerPrilozhenia }} — {{ $('Получить данные клиента').item.json['Название клиента'] }}",
+        "subject": "=✅ Готово: Приложение №{{ $('Собрать данные контрагента').item.json.nomerPrilozhenia }} — {{ $('Собрать данные контрагента').item.json.clientName }}",
         "emailType": "html",
-        "message": "=<p>Приложение к договору создано автоматически.</p>\n<p><strong>Клиент:</strong> {{ $('Получить данные клиента').item.json['Название клиента'] }}<br>\n<strong>Услуга:</strong> {{ $('Новый ответ на форму').item.json['Услуга'] }}<br>\n<strong>Приложение №:</strong> {{ $('Извлечь номер и дату договора').item.json.nomerPrilozhenia }}<br>\n<strong>Дата:</strong> {{ $('Форматировать даты').item.json.dateApp }}</p>\n<p><a href=\"https://docs.google.com/document/d/{{ $('Скопировать шаблон в папку клиента').item.json.id }}\">👉 Открыть документ</a></p>\n<p><em>Проверьте и отправьте клиенту на подпись.</em></p>"
+        "html": "=<p>Приложение к договору создано автоматически.</p>\n<p><strong>Клиент:</strong> {{ $('Собрать данные контрагента').item.json.clientName }}<br>\n<strong>Услуга:</strong> {{ $('Новый ответ на форму').item.json['Услуга'] }}<br>\n<strong>Приложение №:</strong> {{ $('Собрать данные контрагента').item.json.nomerPrilozhenia }}<br>\n<strong>Дата:</strong> {{ $('Форматировать даты').item.json.dateApp }}</p>\n<p><a href=\"https://docs.google.com/document/d/{{ $('Скопировать шаблон в папку клиента').item.json.id }}\">👉 Открыть документ</a></p>\n<p><em>Проверьте и отправьте клиенту на подпись.</em></p>"
       },
-      "credentials": {
-        "smtp": {
-          "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID",
-          "name": "SMTP — medsprintagency"
-        }
-      }
+      "credentials": { "smtp": { "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID", "name": "SMTP — medsprintagency" } }
     }
 
   ],
 
   "connections": {
+    "Webhook триггер": {
+      "main": [[{ "node": "Новый ответ на форму", "type": "main", "index": 0 }]]
+    },
     "Новый ответ на форму": {
       "main": [[{ "node": "Читать Допущенные", "type": "main", "index": 0 }]]
     },
@@ -543,27 +415,33 @@
     },
     "Доступ разрешён?": {
       "main": [
-        [{ "node": "Читать Клиентов",   "type": "main", "index": 0 }],
-        [{ "node": "Email: нет доступа", "type": "main", "index": 0 }]
+        [{ "node": "Повторное приложение?", "type": "main", "index": 0 }],
+        [{ "node": "Email: нет доступа",    "type": "main", "index": 0 }]
       ]
     },
-    "Читать Клиентов": {
-      "main": [[{ "node": "Получить данные клиента", "type": "main", "index": 0 }]]
-    },
-    "Получить данные клиента": {
-      "main": [[{ "node": "Клиент найден?", "type": "main", "index": 0 }]]
-    },
-    "Клиент найден?": {
+    "Повторное приложение?": {
       "main": [
-        [{ "node": "Прочитать предыдущее приложение", "type": "main", "index": 0 }],
-        [{ "node": "Email: клиент не найден",         "type": "main", "index": 0 }]
+        [{ "node": "Определить ID предыдущего приложения", "type": "main", "index": 0 }],
+        [{ "node": "Данные первого приложения",            "type": "main", "index": 0 }]
       ]
+    },
+    "Данные первого приложения": {
+      "main": [[{ "node": "Извлечь ID документа реквизитов", "type": "main", "index": 0 }]]
+    },
+    "Определить ID предыдущего приложения": {
+      "main": [[{ "node": "Прочитать предыдущее приложение", "type": "main", "index": 0 }]]
     },
     "Прочитать предыдущее приложение": {
       "main": [[{ "node": "Извлечь номер и дату договора", "type": "main", "index": 0 }]]
     },
     "Извлечь номер и дату договора": {
-      "main": [[{ "node": "Извлечь ID документа реквизитов", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Данные контрагента найдены?", "type": "main", "index": 0 }]]
+    },
+    "Данные контрагента найдены?": {
+      "main": [
+        [{ "node": "Собрать данные контрагента",       "type": "main", "index": 0 }],
+        [{ "node": "Извлечь ID документа реквизитов",  "type": "main", "index": 0 }]
+      ]
     },
     "Извлечь ID документа реквизитов": {
       "main": [[{ "node": "Прочитать файл реквизитов", "type": "main", "index": 0 }]]
@@ -572,6 +450,9 @@
       "main": [[{ "node": "Разобрать реквизиты", "type": "main", "index": 0 }]]
     },
     "Разобрать реквизиты": {
+      "main": [[{ "node": "Собрать данные контрагента", "type": "main", "index": 0 }]]
+    },
+    "Собрать данные контрагента": {
       "main": [[{ "node": "Читать Шаблоны", "type": "main", "index": 0 }]]
     },
     "Читать Шаблоны": {
@@ -587,9 +468,15 @@
       ]
     },
     "Форматировать даты": {
+      "main": [[{ "node": "Получить папку документа", "type": "main", "index": 0 }]]
+    },
+    "Получить папку документа": {
       "main": [[{ "node": "Скопировать шаблон в папку клиента", "type": "main", "index": 0 }]]
     },
     "Скопировать шаблон в папку клиента": {
+      "main": [[{ "node": "Подготовить body batchUpdate", "type": "main", "index": 0 }]]
+    },
+    "Подготовить body batchUpdate": {
       "main": [[{ "node": "Заменить плейсхолдеры (batchUpdate)", "type": "main", "index": 0 }]]
     },
     "Заменить плейсхолдеры (batchUpdate)": {
@@ -610,10 +497,7 @@
     "callerPolicy": "workflowsFromSameOwner",
     "errorWorkflow": ""
   },
-  "meta": {
-    "templateCredsSetupCompleted": false,
-    "instanceId": ""
-  },
+  "meta": { "templateCredsSetupCompleted": false, "instanceId": "" },
 
   "_setup_instructions": {
     "credentials": "В каждой ноде замените REPLACE_WITH_CREDENTIAL_ID на ID вашего Google OAuth2 credential, REPLACE_WITH_SMTP_CREDENTIAL_ID на ID SMTP credential",
