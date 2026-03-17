@@ -6,19 +6,11 @@
       "id": "trigger-sheets",
       "name": "Новый ответ на форму",
       "type": "n8n-nodes-base.googleSheetsTrigger",
-      "typeVersion": 4,
+      "typeVersion": 1,
       "position": [240, 300],
       "parameters": {
-        "documentId": {
-          "__rl": true,
-          "value": "1EWFUAFM2J8MWh1MzSQNNNS8zgFdtsxaOwDhm_f1Cql8",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "Ответы на форму",
-          "mode": "name"
-        },
+        "documentId": "1EWFUAFM2J8MWh1MzSQNNNS8zgFdtsxaOwDhm_f1Cql8",
+        "sheetName": "Ответы на форму",
         "event": "rowAdded",
         "pollTimes": { "item": [{ "mode": "everyMinute" }] }
       },
