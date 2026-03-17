@@ -65,7 +65,7 @@
       "typeVersion": 2,
       "position": [680, 300],
       "parameters": {
-        "jsCode": "const submitterEmail = ($('Новый ответ на форму').first()?.json['Email Address'] || '').toLowerCase().trim();\nconst rows = $input.all();\nconst found = rows.find(row =>\n  (row.json['Email'] || '').toLowerCase().trim() === submitterEmail\n);\nreturn [{ json: { allowed: !!found, submitterEmail } }];"
+        "jsCode": "let submitterEmail = '';\ntry { submitterEmail = ($('Новый ответ на форму').first()?.json['Email Address'] || '').toLowerCase().trim(); } catch(e) {}\nconst rows = $input.all();\nconst found = rows.find(row =>\n  (row.json['Email'] || '').toLowerCase().trim() === submitterEmail\n);\nreturn [{ json: { allowed: !!found, submitterEmail } }];"
       }
     },
 
@@ -144,7 +144,7 @@
       "typeVersion": 2,
       "position": [1340, 300],
       "parameters": {
-        "jsCode": "const clientName = ($('Новый ответ на форму').first()?.json['Клиент'] || '').trim();\nconst rows = $input.all();\nconst found = rows.find(row =>\n  (row.json['Название клиента'] || '').trim() === clientName\n);\nif (!found) {\n  return [{ json: { 'Название клиента': null } }];\n}\nreturn [{ json: found.json }];"
+        "jsCode": "let clientName = '';\ntry { clientName = ($('Новый ответ на форму').first()?.json['Клиент'] || '').trim(); } catch(e) {}\n\nconst rows = $input.all();\nconst found = rows.find(row =>\n  (row.json['Название клиента'] || '').trim() === clientName\n);\nif (!found) {\n  return [{ json: { 'Название клиента': null } }];\n}\nreturn [{ json: found.json }];"
       }
     },
 
@@ -223,7 +223,7 @@
       "typeVersion": 2,
       "position": [2220, 300],
       "parameters": {
-        "jsCode": "const url = $('Новый ответ на форму').first()?.json['Ссылка на файл реквизитов клиента'] || '';\nconst match = url.match(/\\/document\\/d\\/([a-zA-Z0-9_-]+)/);\nif (!match) throw new Error('Неверная ссылка на файл реквизитов: ' + url);\nreturn [{ json: { requisitesDocId: match[1] } }];"
+        "jsCode": "let url = '';\ntry { url = $('Новый ответ на форму').first()?.json['Ссылка на файл реквизитов клиента'] || ''; } catch(e) {}\n\nconst match = url.match(/\\/document\\/d\\/([a-zA-Z0-9_-]+)/);\nif (!match) throw new Error('Неверная ссылка на файл реквизитов: ' + url);\nreturn [{ json: { requisitesDocId: match[1] } }];"
       }
     },
 
@@ -291,7 +291,7 @@
       "typeVersion": 2,
       "position": [3100, 300],
       "parameters": {
-        "jsCode": "const service = ($('Новый ответ на форму').first()?.json['Услуга'] || '').trim();\nconst rows = $input.all();\nconst found = rows.find(row =>\n  (row.json['Услуга'] || '').trim() === service\n);\nif (!found) {\n  return [{ json: { 'ID шаблона на Drive': null } }];\n}\nreturn [{ json: found.json }];"
+        "jsCode": "let service = '';\ntry { service = ($('Новый ответ на форму').first()?.json['Услуга'] || '').trim(); } catch(e) {}\n\nconst rows = $input.all();\nconst found = rows.find(row =>\n  (row.json['Услуга'] || '').trim() === service\n);\nif (!found) {\n  return [{ json: { 'ID шаблона на Drive': null } }];\n}\nreturn [{ json: found.json }];"
       }
     },
 
@@ -341,7 +341,7 @@
       "typeVersion": 2,
       "position": [3540, 300],
       "parameters": {
-        "jsCode": "const MONTHS = [\n  'января','февраля','марта','апреля','мая','июня',\n  'июля','августа','сентября','октября','ноября','декабря'\n];\n\nfunction formatDate(dateStr) {\n  if (!dateStr) return '';\n  const d = new Date(dateStr);\n  if (isNaN(d)) return dateStr;\n  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()} г.`;\n}\n\nconst formData = $('Новый ответ на форму').first()?.json || {};\n\nreturn [{\n  json: {\n    dateApp:   formatDate(formData['Дата приложения']),\n    dateStart: formatDate(formData['Дата начала работ'])\n  }\n}];"
+        "jsCode": "const MONTHS = [\n  'января','февраля','марта','апреля','мая','июня',\n  'июля','августа','сентября','октября','ноября','декабря'\n];\n\nfunction formatDate(dateStr) {\n  if (!dateStr) return '';\n  const d = new Date(dateStr);\n  if (isNaN(d)) return dateStr;\n  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()} г.`;\n}\n\nlet formData = {};\ntry { formData = $('Новый ответ на форму').first()?.json || {}; } catch(e) {}\n\nreturn [{\n  json: {\n    dateApp:   formatDate(formData['Дата приложения']),\n    dateStart: formatDate(formData['Дата начала работ'])\n  }\n}];"
       }
     },
 
