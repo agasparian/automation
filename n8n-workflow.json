@@ -1,0 +1,619 @@
+{
+  "name": "МедСпринт — Создание приложения к договору",
+  "nodes": [
+
+    {
+      "id": "trigger-sheets",
+      "name": "Новый ответ на форму",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 4,
+      "position": [240, 300],
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_SHEETS_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Ответы на форму",
+          "mode": "name"
+        },
+        "event": "rowAdded",
+        "pollTimes": { "item": [{ "mode": "everyMinute" }] }
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Google Sheets — medsprintagency"
+        }
+      }
+    },
+
+    {
+      "id": "check-allowed",
+      "name": "Проверить доступ (email в списке?)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [460, 300],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_SHEETS_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Допущенные",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [{
+            "lookupColumn": "Email",
+            "lookupValue": "={{ $json['Email Address'] }}"
+          }]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Google Sheets — medsprintagency"
+        }
+      }
+    },
+
+    {
+      "id": "if-allowed",
+      "name": "Доступ разрешён?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [{
+            "id": "access-check",
+            "leftValue": "={{ $json.Email }}",
+            "rightValue": "",
+            "operator": { "type": "string", "operation": "notEmpty" }
+          }]
+        }
+      }
+    },
+
+    {
+      "id": "email-no-access",
+      "name": "Email: нет доступа",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [900, 480],
+      "parameters": {
+        "fromEmail": "medsprintagency@gmail.com",
+        "toEmail": "={{ $('Новый ответ на форму').item.json['Email Address'] }}",
+        "subject": "Нет доступа — МедСпринт Документооборот",
+        "emailType": "text",
+        "message": "Ваш email не найден в списке разрешённых пользователей.\nОбратитесь к администратору."
+      },
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID",
+          "name": "SMTP — medsprintagency"
+        }
+      }
+    },
+
+    {
+      "id": "get-client",
+      "name": "Получить данные клиента",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [900, 300],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_SHEETS_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Клиенты",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [{
+            "lookupColumn": "Название клиента",
+            "lookupValue": "={{ $('Новый ответ на форму').item.json['Клиент'] }}"
+          }]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Google Sheets — medsprintagency"
+        }
+      }
+    },
+
+    {
+      "id": "if-client-found",
+      "name": "Клиент найден?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 300],
+      "parameters": {
+        "conditions": {
+          "conditions": [{
+            "id": "client-check",
+            "leftValue": "={{ $json['Название клиента'] }}",
+            "rightValue": "",
+            "operator": { "type": "string", "operation": "notEmpty" }
+          }]
+        }
+      }
+    },
+
+    {
+      "id": "email-no-client",
+      "name": "Email: клиент не найден",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1340, 480],
+      "parameters": {
+        "fromEmail": "medsprintagency@gmail.com",
+        "toEmail": "={{ $('Новый ответ на форму').item.json['Email Address'] }}",
+        "subject": "Ошибка: клиент не найден — МедСпринт",
+        "emailType": "text",
+        "message": "Клиент \"{{ $('Новый ответ на форму').item.json['Клиент'] }}\" не найден в реестре.\nПроверьте написание или добавьте клиента в лист «Клиенты»."
+      },
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID",
+          "name": "SMTP — medsprintagency"
+        }
+      }
+    },
+
+    {
+      "id": "get-prev-doc",
+      "name": "Прочитать предыдущее приложение",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [1340, 300],
+      "parameters": {
+        "operation": "get",
+        "documentURL": "={{ $json['ID последнего Doc'] }}"
+      },
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Google Docs — medsprintagency"
+        }
+      }
+    },
+
+    {
+      "id": "parse-prev-doc",
+      "name": "Извлечь номер и дату договора",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 300],
+      "parameters": {
+        "jsCode": "// Собираем весь текст из структуры Google Docs API\nconst content = $input.item.json.body?.content || [];\nconst text = content\n  .map(el => {\n    if (!el.paragraph) return '';\n    return (el.paragraph.elements || [])\n      .map(e => e.textRun?.content || '')\n      .join('');\n  })\n  .join('\\n');\n\n// Номер и дата основного договора: «к Договору № X от Y г.»\nconst matchDogovor = text.match(/к\\s+Договору\\s+№?\\s*([\\w\\/\\-\\.]+)\\s+от\\s+([\\d\\w\\s]+?г\\.)/i);\n\n// Номер приложения: «Приложение № N»\nconst matchNomer = text.match(/Приложение\\s*№\\s*(\\d+)/i);\n\nif (!matchDogovor) throw new Error('Не найдена строка \"к Договору №\" в документе: ' + $input.item.json.title);\nif (!matchNomer)   throw new Error('Не найдена строка \"Приложение №\" в документе: ' + $input.item.json.title);\n\nreturn [{\n  json: {\n    nomerDogovora:    matchDogovor[1].trim(),\n    dataDogovora:     matchDogovor[2].trim(),\n    nomerPrilozhenia: String(parseInt(matchNomer[1]) + 1)\n  }\n}];"
+      }
+    },
+
+    {
+      "id": "extract-requisites-id",
+      "name": "Извлечь ID документа реквизитов",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 300],
+      "parameters": {
+        "jsCode": "const url = $('Новый ответ на форму').item.json['Ссылка на файл реквизитов клиента'] || '';\nconst match = url.match(/\\/document\\/d\\/([a-zA-Z0-9_-]+)/);\nif (!match) throw new Error('Неверная ссылка на файл реквизитов: ' + url);\nreturn [{ json: { requisitesDocId: match[1] } }];"
+      }
+    },
+
+    {
+      "id": "get-requisites-doc",
+      "name": "Прочитать файл реквизитов",
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [2000, 300],
+      "parameters": {
+        "operation": "get",
+        "documentURL": "={{ $json.requisitesDocId }}"
+      },
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Google Docs — medsprintagency"
+        }
+      }
+    },
+
+    {
+      "id": "parse-requisites",
+      "name": "Разобрать реквизиты",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2220, 300],
+      "parameters": {
+        "jsCode": "// Собираем текст\nconst content = $input.item.json.body?.content || [];\nconst text = content\n  .map(el => {\n    if (!el.paragraph) return '';\n    return (el.paragraph.elements || [])\n      .map(e => e.textRun?.content || '')\n      .join('');\n  })\n  .join('\\n');\n\n// Парсим строки формата «Ключ: Значение»\nconst fields = {};\ntext.split('\\n').forEach(line => {\n  const colonIdx = line.indexOf(':');\n  if (colonIdx > 0) {\n    const key = line.substring(0, colonIdx).trim();\n    const val = line.substring(colonIdx + 1).trim();\n    if (key && val) fields[key] = val;\n  }\n});\n\nconst fullName = fields['Полное название'] || fields['Название'] || '';\nconst signatory = fields['ФИО подписанта'] || fields['ФИО'] || fields['Подписант'] || '';\n\nif (!fullName) throw new Error('Не найдено поле \"Полное название\" в документе реквизитов');\nif (!signatory) throw new Error('Не найдено поле \"ФИО подписанта\" в документе реквизитов');\n\nreturn [{ json: { clientName: fullName, signatoryName: signatory } }];"
+      }
+    },
+
+    {
+      "id": "get-template",
+      "name": "Найти шаблон по услуге",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [2440, 300],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_SHEETS_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Шаблоны",
+          "mode": "name"
+        },
+        "filtersUI": {
+          "values": [{
+            "lookupColumn": "Услуга",
+            "lookupValue": "={{ $('Новый ответ на форму').item.json['Услуга'] }}"
+          }]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Google Sheets — medsprintagency"
+        }
+      }
+    },
+
+    {
+      "id": "if-template-found",
+      "name": "Шаблон найден?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2660, 300],
+      "parameters": {
+        "conditions": {
+          "conditions": [{
+            "id": "template-check",
+            "leftValue": "={{ $json['ID шаблона на Drive'] }}",
+            "rightValue": "",
+            "operator": { "type": "string", "operation": "notEmpty" }
+          }]
+        }
+      }
+    },
+
+    {
+      "id": "email-no-template",
+      "name": "Email: шаблон не найден",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [2880, 480],
+      "parameters": {
+        "fromEmail": "medsprintagency@gmail.com",
+        "toEmail": "={{ $('Новый ответ на форму').item.json['Email Address'] }}",
+        "subject": "Ошибка: шаблон не найден — МедСпринт",
+        "emailType": "text",
+        "message": "Шаблон для услуги \"{{ $('Новый ответ на форму').item.json['Услуга'] }}\" не найден.\nДобавьте шаблон в лист «Шаблоны» таблицы."
+      },
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID",
+          "name": "SMTP — medsprintagency"
+        }
+      }
+    },
+
+    {
+      "id": "format-dates",
+      "name": "Форматировать даты",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2880, 300],
+      "parameters": {
+        "jsCode": "const MONTHS = [\n  'января','февраля','марта','апреля','мая','июня',\n  'июля','августа','сентября','октября','ноября','декабря'\n];\n\nfunction formatDate(dateStr) {\n  // dateStr может быть 'YYYY-MM-DD' или '2026-03-16'\n  if (!dateStr) return '';\n  const d = new Date(dateStr);\n  if (isNaN(d)) return dateStr;\n  return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()} г.`;\n}\n\nconst formData = $('Новый ответ на форму').item.json;\n\nreturn [{\n  json: {\n    dateApp:   formatDate(formData['Дата приложения']),\n    dateStart: formatDate(formData['Дата начала работ'])\n  }\n}];"
+      }
+    },
+
+    {
+      "id": "copy-template",
+      "name": "Скопировать шаблон в папку клиента",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [3100, 300],
+      "parameters": {
+        "operation": "copy",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Найти шаблон по услуге').item.json['ID шаблона на Drive'] }}",
+          "mode": "id"
+        },
+        "name": "=Приложение №{{ $('Извлечь номер и дату договора').item.json.nomerPrilozhenia }} — {{ $('Получить данные клиента').item.json['Название клиента'] }}",
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "={{ $('Получить данные клиента').item.json['ID папки Drive'] }}",
+          "mode": "id"
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Google Drive — medsprintagency"
+        }
+      }
+    },
+
+    {
+      "id": "replace-placeholders",
+      "name": "Заменить плейсхолдеры (batchUpdate)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3320, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://docs.googleapis.com/v1/documents/{{ $('Скопировать шаблон в папку клиента').item.json.id }}:batchUpdate",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDocsOAuth2Api",
+        "sendBody": true,
+        "contentType": "json",
+        "body": {
+          "requests": [
+            {
+              "replaceAllText": {
+                "containsText": { "text": "{{НОМЕР_ПРИЛОЖЕНИЯ}}", "matchCase": true },
+                "replaceText": "={{ $('Извлечь номер и дату договора').item.json.nomerPrilozhenia }}"
+              }
+            },
+            {
+              "replaceAllText": {
+                "containsText": { "text": "{{НОМЕР_ДОГОВОРА}}", "matchCase": true },
+                "replaceText": "={{ $('Извлечь номер и дату договора').item.json.nomerDogovora }}"
+              }
+            },
+            {
+              "replaceAllText": {
+                "containsText": { "text": "{{ДАТА_ДОГОВОРА}}", "matchCase": true },
+                "replaceText": "={{ $('Извлечь номер и дату договора').item.json.dataDogovora }}"
+              }
+            },
+            {
+              "replaceAllText": {
+                "containsText": { "text": "{{ДАТА_ПРИЛОЖЕНИЯ}}", "matchCase": true },
+                "replaceText": "={{ $('Форматировать даты').item.json.dateApp }}"
+              }
+            },
+            {
+              "replaceAllText": {
+                "containsText": { "text": "{{ДАТА_НАЧАЛА_РАБОТ}}", "matchCase": true },
+                "replaceText": "={{ $('Форматировать даты').item.json.dateStart }}"
+              }
+            },
+            {
+              "replaceAllText": {
+                "containsText": { "text": "{{НАЗВАНИЕ_КЛИЕНТА}}", "matchCase": true },
+                "replaceText": "={{ $('Разобрать реквизиты').item.json.clientName }}"
+              }
+            },
+            {
+              "replaceAllText": {
+                "containsText": { "text": "{{ФИО_ПОДПИСАНТА_КЛИЕНТА}}", "matchCase": true },
+                "replaceText": "={{ $('Разобрать реквизиты').item.json.signatoryName }}"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Google Docs — medsprintagency"
+        }
+      }
+    },
+
+    {
+      "id": "append-registry",
+      "name": "Добавить запись в реестр",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [3540, 300],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_SHEETS_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Реестр приложений",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Дата":            "={{ new Date().toLocaleDateString('ru-RU') }}",
+            "Клиент":          "={{ $('Получить данные клиента').item.json['Название клиента'] }}",
+            "Услуга":          "={{ $('Новый ответ на форму').item.json['Услуга'] }}",
+            "№ приложения":    "={{ $('Извлечь номер и дату договора').item.json.nomerPrilozhenia }}",
+            "Ссылка на Doc":   "=https://docs.google.com/document/d/{{ $('Скопировать шаблон в папку клиента').item.json.id }}",
+            "Статус":          "Черновик",
+            "Кто создал":      "={{ $('Новый ответ на форму').item.json['Email Address'] }}"
+          }
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Google Sheets — medsprintagency"
+        }
+      }
+    },
+
+    {
+      "id": "update-client-doc-id",
+      "name": "Обновить ID последнего Doc у клиента",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [3760, 300],
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_SHEETS_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Клиенты",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": ["Название клиента"],
+          "value": {
+            "Название клиента": "={{ $('Получить данные клиента').item.json['Название клиента'] }}",
+            "ID последнего Doc": "={{ $('Скопировать шаблон в папку клиента').item.json.id }}"
+          }
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "Google Sheets — medsprintagency"
+        }
+      }
+    },
+
+    {
+      "id": "notify-manager",
+      "name": "Уведомить менеджера",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [3980, 300],
+      "parameters": {
+        "fromEmail": "medsprintagency@gmail.com",
+        "toEmail": "={{ $('Новый ответ на форму').item.json['Email Address'] }}",
+        "subject": "=✅ Готово: Приложение №{{ $('Извлечь номер и дату договора').item.json.nomerPrilozhenia }} — {{ $('Получить данные клиента').item.json['Название клиента'] }}",
+        "emailType": "html",
+        "message": "=<p>Приложение к договору создано автоматически.</p>\n<p><strong>Клиент:</strong> {{ $('Получить данные клиента').item.json['Название клиента'] }}<br>\n<strong>Услуга:</strong> {{ $('Новый ответ на форму').item.json['Услуга'] }}<br>\n<strong>Приложение №:</strong> {{ $('Извлечь номер и дату договора').item.json.nomerPrilozhenia }}<br>\n<strong>Дата:</strong> {{ $('Форматировать даты').item.json.dateApp }}</p>\n<p><a href=\"https://docs.google.com/document/d/{{ $('Скопировать шаблон в папку клиента').item.json.id }}\">👉 Открыть документ</a></p>\n<p><em>Проверьте и отправьте клиенту на подпись.</em></p>"
+      },
+      "credentials": {
+        "smtp": {
+          "id": "REPLACE_WITH_SMTP_CREDENTIAL_ID",
+          "name": "SMTP — medsprintagency"
+        }
+      }
+    }
+
+  ],
+
+  "connections": {
+    "Новый ответ на форму": {
+      "main": [[{ "node": "Проверить доступ (email в списке?)", "type": "main", "index": 0 }]]
+    },
+    "Проверить доступ (email в списке?)": {
+      "main": [[{ "node": "Доступ разрешён?", "type": "main", "index": 0 }]]
+    },
+    "Доступ разрешён?": {
+      "main": [
+        [{ "node": "Получить данные клиента", "type": "main", "index": 0 }],
+        [{ "node": "Email: нет доступа",      "type": "main", "index": 0 }]
+      ]
+    },
+    "Получить данные клиента": {
+      "main": [[{ "node": "Клиент найден?", "type": "main", "index": 0 }]]
+    },
+    "Клиент найден?": {
+      "main": [
+        [{ "node": "Прочитать предыдущее приложение", "type": "main", "index": 0 }],
+        [{ "node": "Email: клиент не найден",         "type": "main", "index": 0 }]
+      ]
+    },
+    "Прочитать предыдущее приложение": {
+      "main": [[{ "node": "Извлечь номер и дату договора", "type": "main", "index": 0 }]]
+    },
+    "Извлечь номер и дату договора": {
+      "main": [[{ "node": "Извлечь ID документа реквизитов", "type": "main", "index": 0 }]]
+    },
+    "Извлечь ID документа реквизитов": {
+      "main": [[{ "node": "Прочитать файл реквизитов", "type": "main", "index": 0 }]]
+    },
+    "Прочитать файл реквизитов": {
+      "main": [[{ "node": "Разобрать реквизиты", "type": "main", "index": 0 }]]
+    },
+    "Разобрать реквизиты": {
+      "main": [[{ "node": "Найти шаблон по услуге", "type": "main", "index": 0 }]]
+    },
+    "Найти шаблон по услуге": {
+      "main": [[{ "node": "Шаблон найден?", "type": "main", "index": 0 }]]
+    },
+    "Шаблон найден?": {
+      "main": [
+        [{ "node": "Форматировать даты",      "type": "main", "index": 0 }],
+        [{ "node": "Email: шаблон не найден", "type": "main", "index": 0 }]
+      ]
+    },
+    "Форматировать даты": {
+      "main": [[{ "node": "Скопировать шаблон в папку клиента", "type": "main", "index": 0 }]]
+    },
+    "Скопировать шаблон в папку клиента": {
+      "main": [[{ "node": "Заменить плейсхолдеры (batchUpdate)", "type": "main", "index": 0 }]]
+    },
+    "Заменить плейсхолдеры (batchUpdate)": {
+      "main": [[{ "node": "Добавить запись в реестр", "type": "main", "index": 0 }]]
+    },
+    "Добавить запись в реестр": {
+      "main": [[{ "node": "Обновить ID последнего Doc у клиента", "type": "main", "index": 0 }]]
+    },
+    "Обновить ID последнего Doc у клиента": {
+      "main": [[{ "node": "Уведомить менеджера", "type": "main", "index": 0 }]]
+    }
+  },
+
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": ""
+  },
+
+  "_setup_instructions": {
+    "step1": "Запустите setup.gs в Google Apps Script — получите SHEETS_ID и Template Doc ID",
+    "step2": "В n8n: Settings → Credentials → создайте 'Google Sheets OAuth2 API' и 'Google Docs OAuth2 API' и 'Google Drive OAuth2 API' для аккаунта medsprintagency@gmail.com",
+    "step3": "Замените все вхождения REPLACE_WITH_SHEETS_ID на реальный ID таблицы",
+    "step4": "Замените все вхождения REPLACE_WITH_CREDENTIAL_ID на ID созданного Google credential",
+    "step5": "Настройте SMTP credential для отправки email (или используйте Gmail node)",
+    "step6": "Замените REPLACE_WITH_SMTP_CREDENTIAL_ID на ID SMTP credential",
+    "step7": "Импортируйте workflow: n8n → Workflows → Import from file",
+    "step8": "Активируйте workflow (переключатель Active)"
+  }
+}
