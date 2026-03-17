@@ -3,22 +3,15 @@
   "nodes": [
 
     {
-      "id": "trigger-sheets",
+      "id": "trigger-webhook",
       "name": "Новый ответ на форму",
-      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
       "position": [240, 300],
       "parameters": {
-        "documentId": "1EWFUAFM2J8MWh1MzSQNNNS8zgFdtsxaOwDhm_f1Cql8",
-        "sheetName": "Ответы на форму",
-        "event": "rowAdded",
-        "pollTimes": { "item": [{ "mode": "everyMinute" }] }
-      },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "REPLACE_WITH_CREDENTIAL_ID",
-          "name": "Google Sheets — medsprintagency"
-        }
+        "path": "medsprintagency-addendum",
+        "responseMode": "onReceived",
+        "options": {}
       }
     },
 
